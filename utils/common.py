@@ -1,6 +1,5 @@
 import configparser, datetime, pytz, time
 from selenium.webdriver.common.keys import Keys
-from utils.orm import Region, TimeZone
 
 
 class SeleniumUtil(object):

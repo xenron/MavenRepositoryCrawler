@@ -9,14 +9,16 @@ from utils.log import getLogger
 config = ConfigUtil()
 
 
-class GroupId(BaseModel):
+class GroupIdArtifact(BaseModel):
 
     id = PrimaryKeyField()
     groupId = CharField(null=False)
+    artifact = CharField(null=True)
+    url = CharField(null=True)
 
     class Meta:
         order_by = ('id',)
-        db_table = 'groupId'
+        db_table = 'groupId_artifact'
 
 
 class GroupIdArtifactVersion(BaseModel):
@@ -39,13 +41,13 @@ def initial_database():
 
     database.drop_tables(
         [
-            GroupId,
+            GroupIdArtifact,
             GroupIdArtifactVersion,
         ]
     )
     database.create_tables(
         [
-            GroupId,
+            GroupIdArtifact,
             GroupIdArtifactVersion,
         ]
     )
