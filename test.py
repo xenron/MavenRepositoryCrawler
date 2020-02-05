@@ -16,12 +16,17 @@ if __name__ == '__main__':
     # print(os.getcwd())
     # a = os.system(r"d:")
     # print(a)
-    a = os.system("D:")
+    # a = os.system("D:")
     # f = os.popen(r"cd D:\Work\WangYue\testmaven")
-    os.chdir(r"D:\Work\WangYue\testmaven")
-    print(os.getcwd())
+    # os.chdir(r"D:\Work\WangYue\testmaven")
+    # print(os.getcwd())
     # a = os.system('pwd')
     # print(a)
-    a = os.system(r'D:\soft\Develop\apache-maven-3.5.0\bin\mvn compile 2>out.txt')
-    print(type(a))
-    print(a)
+    # a = os.system(r'D:\soft\Develop\apache-maven-3.5.0\bin\mvn compile 2>out.txt')
+    # print(type(a))
+    # print(a)
+    # str_test = "https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-versions"
+    str_test = 'compile test 445'
+    if str_test.startswith('compile test'):
+        print('yes')
+    # pass

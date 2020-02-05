@@ -14,7 +14,8 @@ class GroupIdArtifact(BaseModel):
     id = PrimaryKeyField()
     groupId = CharField(null=False)
     artifact = CharField(null=True)
-    url = CharField(null=True)
+    url = CharField(null=True, index=True)
+    proceed = BooleanField(null=True)
 
     class Meta:
         order_by = ('id',)
@@ -27,11 +28,27 @@ class GroupIdArtifactVersion(BaseModel):
     groupId = CharField(null=False)
     artifact = CharField(null=True)
     version = CharField(null=True)
+    url = CharField(null=True, index=True)
     proceed = BooleanField(null=True)
 
     class Meta:
         order_by = ('id',)
         db_table = 'groupId_artifact_version'
+
+
+class GroupArtifactVersion(BaseModel):
+
+    id = PrimaryKeyField()
+    groupId = CharField(null=False)
+    artifact = CharField(null=True)
+    version = CharField(null=True)
+    url = CharField(null=True, index=True)
+    searched = BooleanField(null=True, default=False)
+    proceed = BooleanField(null=True, default=False)
+
+    class Meta:
+        order_by = ('id',)
+        db_table = 'group_artifact_version'
 
 
 def initial_database():
@@ -56,8 +73,11 @@ def initial_database():
 
 
 if __name__ == '__main__':
-
-    initial_database()
+    database.drop_tables(
+        [
+            GroupIdArtifactVersion,
+        ]
+    )
 
 
 

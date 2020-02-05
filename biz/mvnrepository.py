@@ -8,13 +8,227 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 import datetime, random, time, traceback
 
-from biz.orm import GroupIdArtifact
+from biz.orm import GroupIdArtifact, GroupArtifactVersion
 from utils.common import ConfigUtil
 from utils.log import getLogger
 
 
 # 读取配置文件
 config = ConfigUtil()
+
+
+# 按页查询group artifact信息，返回url list
+def search_by_group_each_page(driver, group, current_page):
+
+    logger = getLogger()
+    logger.info('method [search_by_group_each_page] start, group is {0}, current page is {1}'.format(group, current_page))
+    group_url = config.load_value('search', 'search_by_group_url', '')
+    url = group_url.format(group, current_page)
+    end_page_flag = False
+    artifact_list = []
+
+    try:
+        driver.get(url)
+        end_page_flag = check_end_page(driver)
+        elements_ims = driver.find_elements_by_class_name('im')
+        if len(elements_ims):
+            for element_ims in elements_ims:
+                element_href = element_ims.find_element_by_tag_name('a')
+                href_text = element_href.get_attribute('href')
+                if href_text:
+                    logger.info('href is {0}'.format(href_text))
+                    artifact_list.append(href_text)
+
+    except TimeoutException as e:
+        logger.info(traceback.format_exc())
+        print(traceback.format_exc())
+
+    except Exception as e:
+        logger.info(traceback.format_exc())
+        print(traceback.format_exc())
+
+    logger.info('method [search_by_group_each_page] end, group is {0}, current page is {1}'.format(group, current_page))
+    return end_page_flag, artifact_list
+
+
+# 查看是否为最后一页
+def check_end_page(driver):
+
+    logger = getLogger()
+    logger.info('method [check_end_page] start')
+
+    element_nav = driver.find_element_by_class_name('search-nav')
+    elements_li = element_nav.find_elements_by_tag_name('li')
+    li_len = len(elements_li)
+    element_next = elements_li[li_len - 1]
+    next_a = element_next.find_elements_by_tag_name('a')
+    if next_a:
+        end_page_flag = False
+    else:
+        end_page_flag = True
+
+    logger.info("method [check_end_page] end, end page flag is {0}".format(end_page_flag))
+    return end_page_flag
+
+
+# 根据group查询artifact信息，返回url list
+def search_by_group(driver, group):
+
+    logger = getLogger()
+    logger.info('method [search_by_group] start, group is {0}'.format(group))
+    end_page_flag = False
+    current_page = 1
+    artifact_list = []
+
+    while not end_page_flag:
+        end_page_flag, result_list = search_by_group_each_page(driver, group, current_page)
+        current_page += 1
+        for result in result_list:
+            if result in artifact_list:
+                continue
+            else:
+                artifact_list.append(result)
+        time.sleep(3)
+
+    logger.info('method [search_by_group] end, group is {0}'.format(group))
+    return artifact_list
+
+
+# group id，artifact和url存入groupId_artifact表
+def set_artifact(url_list):
+
+    logger = getLogger()
+    logger.info("method [set_artifact] start")
+
+    for url in url_list:
+        query = GroupIdArtifact.select().where(GroupIdArtifact.url == url)
+        if len(query):
+            continue
+        else:
+            # url: https://mvnrepository.com/artifact/org.springframework/spring-jdbc
+            split_list = url.split('/')
+            if len(split_list) == 6:
+                groupId = split_list[-2]
+                artifact = split_list[-1]
+                if groupId and artifact:
+                    GroupIdArtifact.create(
+                        groupId=groupId,
+                        artifact=artifact,
+                        url=url,
+                        proceed=False,
+                    )
+            else:
+                continue
+    logger.info("method [set_artifact] end")
+
+
+# 取得version信息
+def get_version(driver):
+    logger = getLogger()
+    logger.info("method [get_version] start")
+    version_list = []
+
+    query = GroupIdArtifact.select().where(GroupIdArtifact.proceed==False)
+    for item in query:
+        result_list = get_version_by_artifact(driver, item.url)
+        set_version(result_list)
+        item.proceed = True
+        item.save()
+        time.sleep(2)
+
+    logger.info("method [get_version] end")
+
+
+# 通过groupId_artifact表中存储的url，打开version列表页面，获取各version的url
+def get_version_by_artifact(driver, url):
+    logger = getLogger()
+    logger.info("method [get_version_by_artifact] start, url is {0}".format(url))
+
+    version_list = []
+
+    try:
+        driver.get(url)
+        element_container = driver.find_elements_by_class_name('gridcontainer')
+        if element_container:
+            elements_version = element_container[0].find_elements_by_class_name('vbtn')
+            for element in elements_version:
+                version_list.append(element.get_attribute('href'))
+
+    except TimeoutException as e:
+        logger.info(traceback.format_exc())
+        print(traceback.format_exc())
+    except Exception as e:
+        logger.info(traceback.format_exc())
+        print(traceback.format_exc())
+
+    logger.info("method [get_version_by_artifact] end")
+    return version_list
+
+
+# group id，artifact，version和url存入groupId_artifact_version表
+def set_version(version_list):
+    logger = getLogger()
+    logger.info("method [set_version] start")
+
+    for url in version_list:
+        query = GroupArtifactVersion.select().where(GroupArtifactVersion.url == url)
+        if len(query):
+            continue
+        else:
+            split_list = url.split('/')
+            version = split_list[-1]
+            artifact = split_list[-2]
+            groupId = split_list[-3]
+            GroupArtifactVersion.create(
+                groupId=groupId,
+                artifact=artifact,
+                version=version,
+                url=url,
+                proceed=False
+            )
+
+    logger.info("method [set_version] end")
+
+
+# 通过GroupArtifactVersion表中存储的url，打开version详细页面，获取其他group artifact的url并存入groupId_artifact表中
+def get_artifact_by_version_page(driver):
+    logger = getLogger()
+    logger.info("method [get_artifact_by_version_page] start")
+
+    query = GroupArtifactVersion.select().where(GroupArtifactVersion.searched==False)
+    for item in query:
+        result_list = []
+        try:
+            logger.info('url is {0}'.format(item.url))
+            driver.get(item.url)
+            elements_tables = driver.find_elements_by_class_name('version-section')
+            for element in elements_tables:
+                element_h = element.find_element_by_tag_name('h2')
+                if element_h:
+                    text = element_h.text
+                    if text.startswith('Compile Dependencies') or text.startswith('Provided') or text.startswith(
+                            'Test Dependencies'):
+                        elements_tr = element.find_elements_by_xpath(".//tbody/tr")
+                        for element_tr in elements_tr:
+                            element_td = element_tr.find_elements_by_tag_name('td')[2]
+                            element_a = element_td.find_elements_by_tag_name('a')
+                            if len(element_a) == 2:
+                                element_a = element_td.find_elements_by_tag_name('a')[1]
+                                url = element_a.get_attribute('href')
+                                result_list.append(url)
+            logger.info('result_list length is {0}'.format(len(result_list)))
+            set_artifact(result_list)
+            item.searched = True
+            item.save()
+
+        except TimeoutException as e:
+            logger.info(traceback.format_exc())
+            print(traceback.format_exc())
+        except Exception as e:
+            logger.info(traceback.format_exc())
+            print(traceback.format_exc())
+
+    logger.info("method [get_artifact_by_version_page] end")
 
 
 # 登录首页，输入关键词并查询
@@ -62,38 +276,6 @@ def search(driver, keyword):
 
     logger.info("method [search] end")
     return search_result
-
-
-def search_by_group(driver, group):
-    logger = getLogger()
-    logger.info('method [search] start, group is {0}'.format(group))
-    group_url = config.load_value('search', 'search_by_group_url', '')
-    url = group_url.format(group, 11)
-    print(url)
-    try:
-        driver.get(url)
-        element_nav = driver.find_element_by_class_name('search-nav')
-        elements_li = element_nav.find_elements_by_tag_name('li')
-        li_len = len(elements_li)
-        print(li_len)
-        element_next = elements_li[li_len-1]
-        next = element_next.find_elements_by_tag_name('a')
-        if next:
-            print('yeah')
-        else:
-            print('no')
-
-    except TimeoutException as e:
-        logger.info(traceback.format_exc())
-        print(traceback.format_exc())
-        search_result = 'failure'
-    except Exception as e:
-        logger.info(traceback.format_exc())
-        print(traceback.format_exc())
-        search_result = 'failure'
-
-    logger.info("method [search] end")
-    # return search_result
 
 
 # 取得最大页码
@@ -168,207 +350,28 @@ def get_artifact_by_page(driver, current_page, keyword):
     return artifact_list
 
 
-# group id，artifact和url存入数据库
-def set_artifact(url_list):
-
-    logger = getLogger()
-    logger.info("method [set_artifact] start")
-
-    for url in url_list:
-        query = GroupIdArtifact.select().where(GroupIdArtifact.url == url)
-        if len(query):
-            continue
-        else:
-            # url:https://mvnrepository.com/artifact/org.springframework/spring-jdbc
-            split_list = url.split('/')
-            groupId = split_list[-2]
-            artifact = split_list[-1]
-            if groupId and artifact:
-                GroupIdArtifact.create(
-                    groupId=groupId,
-                    artifact=artifact,
-                    url=url,
-                )
-    logger.info("method [set_artifact] end")
-
-
-# 取得version信息
-def get_version():
-    logger = getLogger()
-    logger.info("method [get_orders] start")
-
-    query = GroupIdArtifact.select()
-    for item in query:
-        version_list = get_version_by_artifact(item.url)
-        set_version(version_list)
-
-
-def get_version_by_artifact(driver, url):
-    logger = getLogger()
-    logger.info("method [get_orders] start")
-
-    version_list = []
-
-    try:
-        driver.get(url)
-        element_container = driver.find_element_by_class_name('gridcontainer')
-        if len(element_container):
-            elements_tbody = element_container.find_elements_by_tag_name('tbody')
-            print(len(elements_tbody))
-
-    except TimeoutException as e:
-        logger.info(traceback.format_exc())
-        print(traceback.format_exc())
-        search_result = 'failure'
-    except Exception as e:
-        logger.info(traceback.format_exc())
-        print(traceback.format_exc())
-        search_result = 'failure'
-    return version_list
-
-def set_version():
-    pass
-
-
-def get_order_detail(driver, order_info):
-
-    logger = getLogger()
-    logger_custom = getLogger('custom')
-    logger.info("method [get_order_detail] start")
-
-    shop_region = config.load_value('review', 'shop_region', 'US')
-    url_format = config.load_value(shop_region, 'request_review_url')
-    url = url_format.format(order_info.order_id)
-    str_timezones = config.load_value(shop_region, 'default_timezone')
-    list_timezone = str_timezones.split(',')
-
-    try:
-        driver.get(url)
-        # logger.info("get_order_detail, order id: {0}".format(order_info.order_id))
-        logger.info("get_order_detail for order: {0}".format(order_info.order_id))
-        time.sleep(3)
-
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((
-                (By.CSS_SELECTOR, 'span[data-test-id="order-summary-shipby-value"]')
-            )),
-            EC.presence_of_element_located((
-                (By.CSS_SELECTOR, 'span[data-test-id="order-summary-purchase-date-value"]')
-            ))
-        )
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((
-                (By.CSS_SELECTOR, 'div[data-test-id="shipping-section-buyer-address"]')
-            )),
-            EC.presence_of_element_located((
-                (By.CSS_SELECTOR, '.order-details-bordered-box-notes-feedback')
-            ))
-        )
-        # ship date, format: Thu, Dec 5, 2019  or  Thu, 5 Dec 2019
-        elements_span = driver.find_elements_by_css_selector('span[data-test-id="order-summary-shipby-value"]')
-        logger.info("ship_date elements_span length: {0}".format(len(elements_span)))
-        if len(elements_span):
-            element_span = elements_span[0]
-            # logger.info("ship_date text: {0}".format(element_span.text.strip()))
-            order_info.ship_date = element_span.text.strip()
-            order_info.ship_date = datetime.datetime.strptime(order_info.ship_date, "%a, %b %d, %Y")
-            # order_info.ship_date = DateUtil.convert_shipdate(order_info.ship_date)
-            # logger.info("ship_date datetime: {0}".format(order_info.ship_date))
-
-        # purchase date, format: Wed, Dec 4, 2019, 8:27 AM PST
-        elements_span = driver.find_elements_by_css_selector('span[data-test-id="order-summary-purchase-date-value"]')
-        logger.info("purchase_date elements_span length: {0}".format(len(elements_span)))
-        if len(elements_span):
-            element_span = elements_span[0]
-            # logger.info("purchase_date text: {0}".format(element_span.text.strip()))
-            order_info.purchase_date = DateUtil.strip_tz_str(element_span.text, list_timezone)
-            order_info.purchase_date = datetime.datetime.strptime(order_info.purchase_date, "%a, %b %d, %Y, %I:%M %p")
-            # logger.info("purchase_date datetime: {0}".format(order_info.purchase_date))
-
-        # ship address
-        elements_div = driver.find_elements_by_css_selector('div[data-test-id="shipping-section-buyer-address"]')
-        logger.info("ship address elements_div length: {0}".format(len(elements_div)))
-        if len(elements_div):
-            element_div = elements_div[0]
-            elements_span = element_div.find_elements_by_xpath('.//span')
-            if shop_region == 'US':
-                for i, element_span in enumerate(elements_span):
-                    # logger.info("index: {0}, text: {1}".format(i, element_span.text))
-                    if i == 0:
-                        order_info.ship_address = element_span.text.split(',')[0].strip().upper()
-                    # logger.info("order_info.ship_address: {0}".format(order_info.ship_address))
-                    elif i == 2:
-                        order_info.ship_region = element_span.text.strip().upper()
-                    # logger.info("order_info.ship_region: {0}".format(order_info.ship_region))
-                    elif i == 4:
-                        order_info.ship_zip_code = element_span.text.strip()
-            else:
-                ship_state_index = len(elements_span) - 1
-                ship_zip_code_index = len(elements_span) - 2
-                for i, element_span in enumerate(elements_span):
-                    # logger.info("index: {0}, text: {1}".format(i, element_span.text))
-                    if i == 1:
-                        order_info.ship_address = element_span.text.split(',')[0].strip().upper()
-                    # logger.info("order_info.ship_address: {0}".format(order_info.ship_address))
-                    elif i == 2:
-                        order_info.ship_region = element_span.text.strip().upper()
-                    # logger.info("order_info.ship_region: {0}".format(order_info.ship_region))
-                    elif i == ship_zip_code_index:
-                        order_info.ship_zip_code = element_span.text.strip()
-                    # logger.info("order_info.ship_zip_code: {0}".format(order_info.ship_zip_code))
-                    elif i == ship_state_index:
-                        order_info.ship_state = element_span.text.strip().upper()
-                    
-        if order_info.ship_address and len(order_info.ship_address) and order_info.ship_region and len(order_info.ship_region):
-            # 取得UTC并设置到buyer_time_zone
-            if shop_region == 'US':
-                order_info.buyer_time_zone = TimeZoneUtil.getTimeZone(order_info.ship_region, 'UTC-8')
-                # logger.info("order_info.buyer_time_zone: {0}".format(order_info.buyer_time_zone))
-            else:
-                order_info.buyer_time_zone = TimeZoneUtil.getTimeZone(order_info.ship_state, 'UTC+1')
-            
-
-        # rating
-        elements_feedback = driver.find_elements_by_css_selector('.order-details-bordered-box-notes-feedback')
-        logger.info("elements_feedback length: {0}".format(len(elements_feedback)))
-        for element_feedback in elements_feedback:
-            elements_i = element_feedback.find_elements_by_tag_name("i")
-            for element_i in elements_i:
-                class_property = element_i.get_attribute('class')
-                # logger.info("index: {0}, class_property: {1}".format(i, class_property))
-                if 'a-star-1' in class_property:
-                    order_info.buyer_rating = 1
-                elif 'a-star-2' in class_property:
-                    order_info.buyer_rating = 2
-                elif 'a-star-3' in class_property:
-                    order_info.buyer_rating = 3
-                elif 'a-star-4' in class_property:
-                    order_info.buyer_rating = 4
-                elif 'a-star-5' in class_property:
-                    order_info.buyer_rating = 5
-            if order_info.buyer_rating:
-                elements_span = element_feedback.find_elements_by_css_selector('span[class="auto-word-break"]')
-                logger.info("elements_span length: {0}".format(len(elements_span)))
-                for element_span in elements_span:
-                    element_span_text = element_span.text.strip()
-                    if element_span_text:
-                        element_span_text = element_span.text[len('Comments : '):].strip('"')
-                        order_info.buyer_comment = element_span_text
-        order_info.refund = check_refund(driver)
-
-    except Exception as e:
-        logger.info(traceback.format_exc())
-
-    logger.info("method [get_order_detail] end")
-
-    return order_info
-
-
 if __name__ == '__main__':
 
+    url = "https://mvnrepository.com/artifact/org.springframework/spring-dao/2.0-m4"
     driver = webdriver.Chrome()
-    # url = "https://mvnrepository.com/artifact/org.springframework/spring-context"
-    # get_version_by_artifact(driver, url)
-    search_by_group(driver, 'org.springframework.boot')
+    driver.get(url)
+    elements_tables = driver.find_elements_by_class_name('version-section')
+    for element in elements_tables:
+        element_h = element.find_element_by_tag_name('h2')
+        if element_h:
+            text = element_h.text
+            if text.startswith('Compile Dependencies') or text.startswith('Provided') or text.startswith(
+                    'Test Dependencies'):
+                elements_tr = element.find_elements_by_xpath(".//tbody/tr")
+                for element_tr in elements_tr:
+                    element_td = element_tr.find_elements_by_tag_name('td')[2]
+                    element_a = element_td.find_elements_by_tag_name('a')
+                    if len(element_a) == 2:
+                        element_a = element_td.find_elements_by_tag_name('a')[1]
+                        url = element_a.get_attribute('href')
+
+
+
 
 
 
