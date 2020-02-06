@@ -1,6 +1,6 @@
 # -*- coding:utf8 -*-
 import os, pandas
-from biz.orm import GroupId
+from biz.orm import Group
 from biz.orm import initial_database
 from utils.common import ConfigUtil
 from utils.log import getLogger
@@ -13,10 +13,10 @@ config = ConfigUtil()
 '''
 读取查询关键字信息
 '''
-def load_gradeId(file_path):
+def load_group(file_path):
 
     logger = getLogger()
-    logger.info('method [load_gradeId] start.')
+    logger.info('method [load_group] start.')
 
     if os.path.exists(file_path) and os.path.isfile(file_path):
 
@@ -25,20 +25,25 @@ def load_gradeId(file_path):
 
         for index, row in df_state_time.iterrows():
 
-            groupId = row['groupId'].upper()
+            group = row['group']
 
-            if len(groupId):
-                GroupId.create(
-                    groupId=groupId,
-                )
+            if len(group):
+                query = Group.select().where(Group.group == group)
+                if query:
+                    continue
+                else:
+                    Group.create(
+                        group=group,
+                        proceed=False,
+                    )
     else:
         logger.info("input file [{0}] not exists.".format(file_path))
 
-    logger.info('method [load_gradeId] end')
+    logger.info('method [load_group] end')
 
 
 if __name__ == '__main__':
 
     initial_database()
-    load_gradeId('data/gradeId.xlsx')
+    load_group('data/group.xlsx')
 

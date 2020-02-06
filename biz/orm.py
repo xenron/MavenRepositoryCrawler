@@ -1,12 +1,23 @@
 # -*- coding:utf8 -*-
 from peewee import BooleanField, CharField, PrimaryKeyField
 from utils.common import ConfigUtil
-from utils.orm import BaseModel, database
+from utils.orm import BaseModel, DatabaseUtil
 from utils.log import getLogger
 
 
 # 读取配置文件
 config = ConfigUtil()
+
+
+class Group(BaseModel):
+
+    id = PrimaryKeyField()
+    group = CharField(null=False)
+    proceed = BooleanField(null=True)
+
+    class Meta:
+        order_by = ('id',)
+        db_table = 'group'
 
 
 class GroupIdArtifact(BaseModel):
@@ -20,20 +31,6 @@ class GroupIdArtifact(BaseModel):
     class Meta:
         order_by = ('id',)
         db_table = 'groupId_artifact'
-
-
-class GroupIdArtifactVersion(BaseModel):
-
-    id = PrimaryKeyField()
-    groupId = CharField(null=False)
-    artifact = CharField(null=True)
-    version = CharField(null=True)
-    url = CharField(null=True, index=True)
-    proceed = BooleanField(null=True)
-
-    class Meta:
-        order_by = ('id',)
-        db_table = 'groupId_artifact_version'
 
 
 class GroupArtifactVersion(BaseModel):
@@ -56,16 +53,18 @@ def initial_database():
     logger = getLogger('')
     logger.info('method [initial_database] start')
 
-    database.drop_tables(
+    DatabaseUtil().get_database().drop_tables(
         [
+            Group,
             GroupIdArtifact,
-            GroupIdArtifactVersion,
+            GroupArtifactVersion,
         ]
     )
-    database.create_tables(
+    DatabaseUtil().get_database().create_tables(
         [
+            Group,
             GroupIdArtifact,
-            GroupIdArtifactVersion,
+            GroupArtifactVersion,
         ]
     )
 
@@ -73,11 +72,9 @@ def initial_database():
 
 
 if __name__ == '__main__':
-    database.drop_tables(
-        [
-            GroupIdArtifactVersion,
-        ]
-    )
+
+    initial_database()
+
 
 
 

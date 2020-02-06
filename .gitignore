@@ -8,5 +8,6 @@ __pycache__
 logs/*
 output/*
 venv/*
+*.log
 
 

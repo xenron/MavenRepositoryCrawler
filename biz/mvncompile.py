@@ -17,13 +17,13 @@ def rewrite_xml(item):
     root = updateTree.getroot()
     child_dep = root.find(pre + 'dependencies')
     dependency = child_dep.find(pre + 'dependency')
-    for item in dependency:
-        if item.tag == pre + 'groupId':
-            item.text = item.groupId
-        elif item.tag == pre + 'artifactId':
-            item.text = item.artifact
-        elif item.tag == pre + 'version':
-            item.text = item.version
+    for de in dependency:
+        if de.tag == pre + 'groupId':
+            de.text = item.groupId
+        elif de.tag == pre + 'artifactId':
+            de.text = item.artifact
+        elif de.tag == pre + 'version':
+            de.text = item.version
 
     updateTree.write(color_xml)
     logger.info("method [rewrite_xml] end")

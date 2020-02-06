@@ -1,13 +1,12 @@
 # -*- coding:utf8 -*-
 import math
+import random, time, traceback
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-import datetime, random, time, traceback
-
 from biz.orm import GroupIdArtifact, GroupArtifactVersion
 from utils.common import ConfigUtil
 from utils.log import getLogger
@@ -78,20 +77,14 @@ def search_by_group(driver, group):
     logger.info('method [search_by_group] start, group is {0}'.format(group))
     end_page_flag = False
     current_page = 1
-    artifact_list = []
 
     while not end_page_flag:
         end_page_flag, result_list = search_by_group_each_page(driver, group, current_page)
         current_page += 1
-        for result in result_list:
-            if result in artifact_list:
-                continue
-            else:
-                artifact_list.append(result)
-        time.sleep(3)
+        set_artifact(result_list)
+        time.sleep(random.randint(2, 5))
 
     logger.info('method [search_by_group] end, group is {0}'.format(group))
-    return artifact_list
 
 
 # group id，artifact和url存入groupId_artifact表
@@ -134,7 +127,7 @@ def get_version(driver):
         set_version(result_list)
         item.proceed = True
         item.save()
-        time.sleep(2)
+        time.sleep(random.randint(2, 5))
 
     logger.info("method [get_version] end")
 
@@ -220,6 +213,7 @@ def get_artifact_by_version_page(driver):
             set_artifact(result_list)
             item.searched = True
             item.save()
+            time.sleep(random.randint(2, 5))
 
         except TimeoutException as e:
             logger.info(traceback.format_exc())
@@ -312,7 +306,7 @@ def get_artifacts(driver, page_count, keyword):
             url_list.append(url)
         current_page += 1
 
-        time.sleep(3)
+        time.sleep(random.randint(2, 5))
     logger.info('method [get_page_count] end')
     return url_list
 

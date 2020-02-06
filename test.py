@@ -1,4 +1,5 @@
 import math, os
+import random
 
 if __name__ == '__main__':
     # keyword = "spring boot"
@@ -26,7 +27,8 @@ if __name__ == '__main__':
     # print(type(a))
     # print(a)
     # str_test = "https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-versions"
-    str_test = 'compile test 445'
-    if str_test.startswith('compile test'):
-        print('yes')
+    # str_test = 'compile test 445'
+    # if str_test.startswith('compile test'):
+    #     print('yes')
+    print(random.randint(1, 10))
     # pass

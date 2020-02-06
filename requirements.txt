@@ -1,0 +1,10 @@
+requests
+beautifulsoup4
+lxml
+html5lib
+peewee
+selenium
+pandas
+xlrd
+xlwt
+pymysql

@@ -2,6 +2,22 @@ import configparser, datetime, pytz, time
 from selenium.webdriver.common.keys import Keys
 
 
+def __singleton(cls):
+    """
+    单例模式的装饰器函数
+    :param cls: 实体类
+    :return: 返回实体类对象
+    """
+    instances = {}
+
+    def getInstance(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
+
+    return getInstance
+
+
 class SeleniumUtil(object):
 
     @staticmethod
