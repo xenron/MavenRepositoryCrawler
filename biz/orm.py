@@ -17,7 +17,7 @@ class Group(BaseModel):
 
     class Meta:
         order_by = ('id',)
-        db_table = 'group'
+        db_table = 'group_info'
 
 
 class GroupIdArtifact(BaseModel):
@@ -30,7 +30,7 @@ class GroupIdArtifact(BaseModel):
 
     class Meta:
         order_by = ('id',)
-        db_table = 'groupId_artifact'
+        db_table = 'group_artifact'
 
 
 class GroupArtifactVersion(BaseModel):
