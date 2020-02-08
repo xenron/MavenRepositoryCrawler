@@ -9,6 +9,6 @@ logs/*
 output/*
 venv/*
 *.log
-*.pom
+*.xml
 
 
