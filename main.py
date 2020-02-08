@@ -65,10 +65,8 @@ def search_artifact_by_version(driver):
 def maven_compile():
     logger = getLogger()
     logger.info("method [maven_compile] start")
-    current_count = 1
-    early_stop = False
 
-    while True and (not early_stop):
+    while True:
         query = GroupArtifactVersion.select().where(GroupArtifactVersion.proceed == False)
         if len(query):
             for item in query:
@@ -82,10 +80,7 @@ def maven_compile():
                 else:
                     logger.info('build {0}-{1}-{2} success, process next one'.format(
                         item.groupId, item.artifact, item.version))
-                current_count += 1
-                if current_count > 3:
-                    early_stop = True
-                    break
+            break
         else:
             break
 
