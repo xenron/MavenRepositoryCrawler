@@ -9,5 +9,6 @@ logs/*
 output/*
 venv/*
 *.log
+*.pom
 
 
