@@ -129,7 +129,7 @@ if __name__ == '__main__':
     if init_database_flag == 'True':
         initial_database()
 
-    load_group('data/group.xlsx')
+    load_group('data/group.csv')
 
     if len(sys.argv) == 2:
         if sys.argv[1] == 'search_by_group':
