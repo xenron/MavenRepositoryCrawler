@@ -29,6 +29,7 @@ def rewrite_xml(item):
         elif de.tag == pre + 'version':
             de.text = item.version
 
+    logger.info("repository to be compiled is {0}-{1}-{2}".format(item.groupId, item.artifact, item.version))
     updateTree.write(pom_path)
     logger.info("method [rewrite_xml] end")
 
